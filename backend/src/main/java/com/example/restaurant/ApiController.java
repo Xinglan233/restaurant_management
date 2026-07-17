@@ -16,12 +16,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin
+@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class ApiController {
     private final DbService db;
+    private final AuthService authService;
 
-    public ApiController(DbService db) {
+    public ApiController(DbService db, AuthService authService) {
         this.db = db;
+        this.authService = authService;
     }
 
     @ExceptionHandler(ApiException.class)
@@ -36,7 +38,10 @@ public class ApiController {
 
     @PostMapping("/login")
     public Map<String, Object> login(@RequestBody Map<String, Object> body) {
-        return db.login(body);
+        Map<String, Object> result = db.login(body);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> user = (Map<String, Object>) result.get("user");
+        return Map.of("success", true, "user", user, "token", authService.createToken(user));
     }
 
     @GetMapping("/dashboard")

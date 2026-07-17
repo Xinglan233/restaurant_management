@@ -285,7 +285,10 @@ const orderTables = computed(() => tables.value.filter(t => t.status === '空' |
 const onSaleDishes = computed(() => dishes.value.filter(d => Number(d.is_on_sale) === 1))
 
 async function request(path, options = {}) {
-  const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...options })
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
+  const token = localStorage.getItem('token')
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(API + path, { ...options, headers })
   const data = await res.json()
   if (data.success === false) throw new Error(data.message)
   return data
@@ -295,11 +298,12 @@ async function login() {
     const data = await request('/login', { method: 'POST', body: JSON.stringify(loginForm) })
     user.value = data.user
     localStorage.setItem('user', JSON.stringify(data.user))
+    localStorage.setItem('token', data.token)
     page.value = 'home'
     await loadAll()
   } catch (e) { show(e.message) }
 }
-function logout() { localStorage.removeItem('user'); user.value = null }
+function logout() { localStorage.removeItem('user'); localStorage.removeItem('token'); user.value = null }
 async function loadAll() {
   if (!user.value) return
   if (!visibleMenus.value.some(m => m.key === page.value)) page.value = 'home'
