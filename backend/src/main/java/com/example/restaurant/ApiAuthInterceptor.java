@@ -26,7 +26,7 @@ public class ApiAuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
-        String path = request.getRequestURI();
+        String path = normalizedRequestPath(request);
         if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || "/api/login".equals(path)) {
             return true;
         }
@@ -47,12 +47,38 @@ public class ApiAuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean requiresManager(HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = normalizedRequestPath(request);
         if (("POST".equals(request.getMethod()) || "PUT".equals(request.getMethod()) || "DELETE".equals(request.getMethod()))
                 && (path.startsWith("/api/tables") || path.startsWith("/api/dishes") || path.startsWith("/api/categories"))) {
             return true;
         }
         return MANAGER_PREFIXES.stream().anyMatch(path::startsWith);
+    }
+
+    private String normalizedRequestPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isEmpty() && path.startsWith(contextPath)) {
+            path = path.substring(contextPath.length());
+        }
+        return stripPathParameters(path);
+    }
+
+    private String stripPathParameters(String path) {
+        StringBuilder normalized = new StringBuilder(path.length());
+        boolean skippingPathParameter = false;
+        for (int i = 0; i < path.length(); i++) {
+            char ch = path.charAt(i);
+            if (ch == '/') {
+                skippingPathParameter = false;
+                normalized.append(ch);
+            } else if (ch == ';') {
+                skippingPathParameter = true;
+            } else if (!skippingPathParameter) {
+                normalized.append(ch);
+            }
+        }
+        return normalized.toString();
     }
 
     private void writeError(HttpServletResponse response, int status, String message) throws IOException {
